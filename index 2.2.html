@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1d2330">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Bodega de Garantías</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+  :root{--bg:#f4f5f7;--card:#fff;--ink:#1d2330;--muted:#6b7280;--line:#e3e6eb;--brand:#c4161c;
+        --ok:#16803c;--warn:#c27803;--bad:#c4161c;--gray:#6b7280;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:16px}
+  header{background:var(--ink);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+  header h1{font-size:17px;margin:0;flex:1}
+  header button{background:transparent;color:#fff;border:1px solid #ffffff55;border-radius:8px;padding:6px 10px;font-size:14px}
+  main{max-width:900px;margin:0 auto;padding:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center;cursor:pointer}
+  .tile b{display:block;font-size:24px}
+  .tile span{font-size:12px;color:var(--muted)}
+  .t-bad b{color:var(--bad)} .t-warn b{color:var(--warn)} .t-ok b{color:var(--ok)} .t-gray b{color:var(--gray)}
+  input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;font-size:16px;background:#fff;font-family:inherit}
+  label{font-size:13px;color:var(--muted);display:block;margin:10px 0 4px}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  .btn{display:block;width:100%;padding:13px;border:0;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;background:#e9ebef;color:var(--ink)}
+  .btn.primary{background:var(--ink);color:#fff}
+  .btn.danger{background:var(--bad);color:#fff}
+  .btn.ok{background:var(--ok);color:#fff}
+  .btn.small{display:inline-block;width:auto;padding:8px 12px;font-size:14px;margin:0}
+  .banner{border-radius:12px;padding:18px;color:#fff;text-align:center;margin-bottom:12px}
+  .banner b{display:block;font-size:30px;letter-spacing:1px}
+  .banner span{font-size:15px;opacity:.95}
+  .s-VIGENTE{background:var(--ok)} .s-PROXIMO{background:var(--warn)} .s-DESECHAR{background:var(--bad)}
+  .s-SALIO,.s-SIN_FECHA{background:var(--gray)}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0}
+  dt{color:var(--muted);font-size:13px;padding-top:2px} dd{margin:0;font-weight:500}
+  .item{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+  .item:last-child{border-bottom:0}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .item .main{flex:1;min-width:0}
+  .item .main div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item small{color:var(--muted)}
+  .pill{font-size:12px;padding:3px 8px;border-radius:20px;color:#fff;white-space:nowrap}
+  .muted{color:var(--muted);font-size:14px}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;display:none;z-index:20;max-width:90%}
+  .loading{position:fixed;inset:0;background:#ffffffaa;display:none;align-items:center;justify-content:center;z-index:15;font-weight:600}
+  .qrbox{display:flex;justify-content:center;padding:8px}
+  .hidden{display:none!important}
+  /* Etiquetas: formato fijo 63 x 90 mm, QR de 50 x 50 mm, 9 por hoja A4 (3 x 3) */
+  .labels{display:grid;grid-template-columns:repeat(3,63mm);gap:2mm;justify-content:center}
+  .lbl{width:63mm;height:90mm;border:0.3mm dashed #9aa0a6;padding:3mm;display:flex;flex-direction:column;align-items:center;
+       background:#fff;color:#000;overflow:hidden;break-inside:avoid;page-break-inside:avoid;font-family:Arial,Helvetica,sans-serif}
+  .lbl .top{width:100%;color:#fff;text-align:center;font-weight:700;font-size:14pt;letter-spacing:1px;border-radius:1.5mm;padding:1mm 0;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .lbl .q{width:50mm;height:50mm;margin:2mm 0 1.5mm}
+  .lbl .q img,.lbl .q canvas{width:50mm!important;height:50mm!important;display:block}
+  .lbl .or{font-size:13pt;font-weight:700;line-height:1.1}
+  .lbl .det{font-size:8.5pt;text-align:center;line-height:1.15;max-height:2.3em;overflow:hidden;width:100%}
+  .lbl .meta{font-size:7.5pt;color:#333;margin-top:.5mm}
+  .lbl .lim{font-size:9.5pt;font-weight:700;margin-top:.5mm}
+  .c0{background:#d62828}.c1{background:#1d4ed8}.c2{background:#15803d}.c3{background:#b58900}
+  @media (max-width:640px){.labels{grid-template-columns:repeat(auto-fill,63mm)}}
+  @media print{
+    @page{size:A4;margin:8mm}
+    header,.noprint,.toast,.loading{display:none!important}
+    body{background:#fff} main{padding:0;max-width:none}
+    .labels{gap:2mm}
+    .lbl:nth-child(9n){break-after:page;page-break-after:always}
+  }
+  /* Escaneo continuo */
+  .modes{display:flex;gap:6px;margin-bottom:10px}
+  .modes button{flex:1;padding:10px 4px;border:2px solid var(--line);border-radius:10px;background:#fff;font-size:13px;font-weight:600}
+  .modes button.on{border-color:var(--ink);background:var(--ink);color:#fff}
+  .cam{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:1/1;max-height:55vh;margin:0 auto}
+  .cam video{width:100%;height:100%;object-fit:cover;display:block}
+  .cam .aim{position:absolute;inset:18%;border:3px solid #ffffffcc;border-radius:14px;box-shadow:0 0 0 999px #0005}
+  .cam .msg{position:absolute;left:0;right:0;bottom:0;color:#fff;text-align:center;padding:8px;font-size:14px;background:#0008}
+  .last{border-radius:12px;padding:12px;color:#fff;margin:10px 0;min-height:64px}
+  .last b{font-size:22px;display:block}
+  .counts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:12px;color:var(--muted)}
+  .counts b{display:block;font-size:20px;color:var(--ink)}
+  .sync{font-size:13px;color:var(--muted);text-align:right;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1 onclick="go('home')" style="cursor:pointer">📦 Bodega de Garantías</h1>
+  <button id="btnBack" class="hidden" onclick="back()">← Volver</button>
+  <button onclick="openSetup()" title="Configuración">⚙️</button>
+</header>
+<main>
+
+  <!-- CONFIGURACIÓN (una vez por teléfono/computadora) -->
+  <section id="v-setup" class="hidden">
+    <div class="card">
+      <h3 style="margin-top:0">Conectar con la hoja de garantías</h3>
+      <p class="muted">Se hace una sola vez en cada teléfono o computadora.</p>
+      <label>Enlace de la app de Google (termina en /exec)</label>
+      <input id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+      <label>PIN de bodega</label>
+      <input id="cfgPin" type="password" inputmode="numeric" placeholder="••••" autocomplete="off">
+      <label>Tu nombre (queda en el historial de cambios)</label>
+      <input id="cfgUser" placeholder="Ej: Jhoel">
+      <button class="btn primary" onclick="saveSetup()">Guardar y conectar</button>
+      <p class="muted" id="setupMsg"></p>
+    </div>
+  </section>
+
+  <!-- INICIO -->
+  <section id="v-home" class="hidden">
+    <div class="tiles">
+      <div class="tile t-bad" onclick="openList('DESECHAR')"><b id="nDes">–</b><span>Desechar</span></div>
+      <div class="tile t-warn" onclick="openList('PROXIMO')"><b id="nPro">–</b><span>Vencen pronto</span></div>
+      <div class="tile t-ok" onclick="openList('VIGENTE')"><b id="nVig">–</b><span>Vigentes</span></div>
+      <div class="tile t-gray" onclick="openList('SIN_ID')"><b id="nSin">–</b><span>Sin ID / QR</span></div>
+    </div>
+    <div class="card">
+      <label>Buscar por ID, OR, # TWC, # FTR, detalle o ubicación</label>
+      <div class="row">
+        <input id="q" placeholder="Ej: A340811" onkeydown="if(event.key==='Enter')search()">
+        <button class="btn primary small" style="flex:none" onclick="search()">Buscar</button>
+      </div>
+      <div id="results"></div>
+    </div>
+    <div class="card">
+      <button class="btn primary" onclick="openNew()">＋ Registrar caja nueva</button>
+      <button class="btn primary" onclick="openScan()">📷 Escaneo continuo</button>
+      <button class="btn ok" onclick="openPending()">🖨 QR nuevos por imprimir (<span id="nPend">–</span>)</button>
+      <button class="btn" onclick="openList('BODEGA')">Todo lo que está en bodega / imprimir etiquetas</button>
+      <button class="btn" onclick="assignIds()">Asignar ID a cajas sin ID</button>
+      <button class="btn" onclick="reloadData()">🔄 Actualizar datos desde la hoja</button>
+      <label>Tu nombre (queda en el historial de cambios)</label>
+      <input id="usuario" placeholder="Ej: Jhoel" onchange="saveUser()">
+    </div>
+  </section>
+
+  <!-- FICHA DE UNA CAJA -->
+  <section id="v-ficha" class="hidden">
+    <div id="banner" class="banner"></div>
+    <div class="card"><dl id="datos"></dl></div>
+    <div class="card" id="acciones">
+      <button class="btn ok" onclick="act('INVENTARIO')">✔ Verificada en bodega (inventario)</button>
+      <button class="btn danger" onclick="confirmAct('DESECHO','¿Confirmas que esta caja se entrega al GESTOR DE DESECHO hoy?')">🗑 Enviar a gestor de desecho</button>
+      <button class="btn" onclick="act('POR_DESECHAR')">Marcar "POR DESECHAR"</button>
+      <label>Entregar / enviar a otro destino</label>
+      <div class="row">
+        <select id="destino"></select>
+        <button class="btn small" style="flex:none" onclick="act('ENTREGA',{destino:val('destino')})">Entregar</button>
+      </div>
+      <label>Cambiar ubicación</label>
+      <div class="row">
+        <input id="ubiEdit" list="dlUbic" placeholder="Ej: A 2C">
+        <button class="btn small" style="flex:none" onclick="act('EDITAR',{ubicacion:val('ubiEdit')})">Guardar</button>
+      </div>
+      <label>Observaciones</label>
+      <div class="row">
+        <input id="obsEdit">
+        <button class="btn small" style="flex:none" onclick="act('EDITAR',{obs:val('obsEdit')})">Guardar</button>
+      </div>
+    </div>
+    <div class="card hidden" id="accionesSalio">
+      <p class="muted">Esta caja ya salió de bodega.</p>
+      <button class="btn" onclick="confirmAct('REINGRESO','¿Deshacer la salida y volver a marcarla como almacenada?')">↩ Deshacer salida</button>
+    </div>
+    <div class="card">
+      <div class="qrbox" id="fichaQr"></div>
+      <button class="btn" onclick="openLabels([CUR],'Etiqueta de '+CUR.id)">🖨 Imprimir etiqueta de esta caja</button>
+    </div>
+  </section>
+
+  <!-- NUEVA CAJA -->
+  <section id="v-new" class="hidden">
+    <div class="card">
+      <h3 style="margin-top:0">Registrar caja nueva</h3>
+      <div class="row">
+        <div><label>OR *</label><input id="f_or" placeholder="A340811"></div>
+        <div><label>Bodega</label><select id="f_bodega"></select></div>
+      </div>
+      <label>Detalle *</label><input id="f_detalle" placeholder="BOMBA DE AGUA">
+      <div class="row">
+        <div><label>Tipo de garantía</label><select id="f_tipo"></select></div>
+        <div><label># TWC</label><input id="f_twc"></div>
+      </div>
+      <div class="row">
+        <div><label>Agencia</label><select id="f_agencia"></select></div>
+        <div><label>Subconcesionaria</label><input id="f_sub"></div>
+      </div>
+      <label>Ubicación</label><input id="f_ubicacion" list="dlUbic" placeholder="A 2C">
+      <div class="row">
+        <div><label>Fecha recepción</label><input id="f_recepcion" type="date"></div>
+        <div><label>Fecha reparación</label><input id="f_reparacion" type="date"></div>
+      </div>
+      <div class="row">
+        <div><label>¿Aplica FTR?</label><select id="f_aplicaFtr" onchange="calcLim()"><option value="">NO</option><option>SI</option></select></div>
+        <div><label># FTR</label><input id="f_ftr"></div>
+      </div>
+      <label>Observaciones</label><input id="f_obs">
+      <p class="muted" id="limPrev"></p>
+      <button class="btn primary" onclick="saveNew()">Guardar y generar QR</button>
+    </div>
+  </section>
+
+  <!-- LISTA -->
+  <section id="v-list" class="hidden">
+    <div class="card">
+      <div class="row noprint" style="align-items:center">
+        <h3 id="listTitle" style="margin:0"></h3>
+        <button class="btn small primary" style="flex:none" onclick="openLabels(LIST.filter(x=>x.id),'Etiquetas: '+$('listTitle').textContent)">🖨 Etiquetas de esta lista</button>
+      </div>
+      <input id="listFilter" placeholder="Filtrar esta lista…" oninput="renderList()" style="margin-top:10px">
+      <p class="muted" id="listInfo"></p>
+      <div id="listBox"></div>
+    </div>
+  </section>
+
+  <!-- ETIQUETAS -->
+  <section id="v-labels" class="hidden">
+    <div class="card noprint">
+      <h3 style="margin-top:0" id="lblTitle">Etiquetas QR</h3>
+      <p class="muted">Formato fijo: etiqueta de 6,3 × 9 cm con QR de 5 × 5 cm, 9 por hoja A4. Al imprimir elige <b>Tamaño A4</b>, <b>Escala 100 %</b> (o "Tamaño real") y <b>sin márgenes extra</b>, para que el QR mida exactamente 5 cm. La franja de color indica el mes en que vence la caja.</p>
+      <div class="row">
+        <div><label>¿Cuántas cajas imprimir?</label><input id="lblQty" type="number" min="1" oninput="renderLabels()"></div>
+        <div><label>Copias por caja</label><input id="lblCopies" type="number" min="1" max="10" value="1" oninput="renderLabels()"></div>
+      </div>
+      <p class="muted" id="lblInfo"></p>
+      <button class="btn primary" onclick="window.print()">🖨 Imprimir</button>
+      <button class="btn ok" id="btnMark" onclick="markPrinted()">✔ Ya las imprimí: marcarlas como impresas</button>
+    </div>
+    <div class="labels" id="labelsBox"></div>
+  </section>
+
+  <!-- ESCANEO CONTINUO -->
+  <section id="v-scan" class="hidden">
+    <div class="modes">
+      <button id="m-CONSULTA" onclick="setMode('CONSULTA')">👁 Consultar</button>
+      <button id="m-INVENTARIO" onclick="setMode('INVENTARIO')">✔ Inventario</button>
+      <button id="m-DESECHO" onclick="setMode('DESECHO')">🗑 Desecho</button>
+    </div>
+    <p class="muted" id="modeHelp" style="margin:0 0 8px"></p>
+    <div class="cam" id="camBox">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="aim"></div>
+      <div class="msg" id="camMsg">Iniciando cámara…</div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn small" onclick="startCam()">🔄 Reintentar cámara</button>
+      <button class="btn small" style="flex:.5" onclick="toggleTorch()">🔦</button>
+      <label class="btn small" style="margin:0;text-align:center;color:var(--ink)">📸 Tomar foto del QR
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanPhoto(this)"></label>
+    </div>
+    <input id="wedge" placeholder="Lector Bluetooth / escribir ID y Enter" style="margin-top:8px"
+      onkeydown="if(event.key==='Enter'){handleCode(this.value);this.value=''}">
+    <div class="last s-SIN_FECHA" id="lastBox"><b>Listo para escanear</b><span>Apunta la cámara a la etiqueta</span></div>
+    <div class="card">
+      <div class="counts">
+        <div><b id="cTot">0</b>Escaneadas</div>
+        <div><b id="cOk" style="color:var(--ok)">0</b>Vigentes</div>
+        <div><b id="cBad" style="color:var(--bad)">0</b>Desechar</div>
+        <div><b id="cNo" style="color:var(--gray)">0</b>No encontradas</div>
+      </div>
+      <div class="sync" id="syncMsg"></div>
+      <button class="btn danger hidden" id="btnApplyDesecho" onclick="applyDesecho()">🗑 Enviar a gestor de desecho las cajas vencidas escaneadas</button>
+      <button class="btn" onclick="finishScan()">Terminar escaneo</button>
+    </div>
+    <div class="card"><h3 style="margin-top:0">Escaneadas en esta sesión</h3><div id="scanList"><p class="muted">Aún nada.</p></div></div>
+  </section>
+
+  <datalist id="dlUbic"></datalist>
+</main>
+<div class="toast" id="toast"></div>
+<div class="loading" id="loading">Cargando…</div>
+
+<script>
+const INITIAL_ID = new URLSearchParams(location.search).get('id') || '';
+let BOOT = null;
+/* ---- Configuración guardada en este equipo ---- */
+const LS={get(k){try{return localStorage.getItem('bodega_'+k)||''}catch(e){return ''}},set(k,v){try{localStorage.setItem('bodega_'+k,v)}catch(e){}}};
+let CFG={url:LS.get('url'),pin:LS.get('pin')};
+/* ---- Datos locales: todo se consulta en el teléfono, solo los cambios van al servidor ---- */
+let DATA=[],BYID={};
+function loadData(b){
+  BOOT=b;DATA=b.registros||[];BYID={};DATA.forEach(o=>{if(o.id)BYID[o.id.toUpperCase()]=o});
+  APP={url:b.url,listas:b.listas,config:b.config,cuenta:countsLocal()};
+}
+function upsert(o){
+  if(!o)return o;
+  let i=DATA.findIndex(x=>x.fila===o.fila);
+  if(i>=0)DATA[i]=o;else DATA.push(o);
+  if(o.id)BYID[o.id.toUpperCase()]=o;
+  return o;
+}
+function countsLocal(){
+  const c={VIGENTE:0,PROXIMO:0,DESECHAR:0,SIN_FECHA:0,SIN_ID:0,PENDIENTES:0};
+  DATA.forEach(o=>{if(o.semaforo!=='SALIO')c[o.semaforo]++;if(!o.id)c.SIN_ID++;if(o.id&&!o.impreso&&o.semaforo!=='SALIO')c.PENDIENTES++});
+  return c;
+}
+function listLocal(f){
+  let out=DATA.filter(o=>f==='BODEGA'?o.semaforo!=='SALIO':f==='SIN_ID'?!o.id:f==='PENDIENTES'?(o.id&&!o.impreso&&o.semaforo!=='SALIO'):o.semaforo===f);
+  if(f==='PENDIENTES')return out.sort((a,b)=>a.id.localeCompare(b.id));
+  return out.sort((a,b)=>(a.dias==null?1e9:a.dias)-(b.dias==null?1e9:b.dias));
+}
+async function reloadData(){const b=await call('apiBoot',true);loadData(b);refreshCounts();toast('✔ Datos actualizados desde la hoja')}
+let APP = null, CUR = null, LIST = [], HISTORY = [];
+const ST = {
+  VIGENTE:  {t:'VIGENTE',  c:'var(--ok)'},
+  PROXIMO:  {t:'VENCE PRONTO', c:'var(--warn)'},
+  DESECHAR: {t:'DESECHAR', c:'var(--bad)'},
+  SALIO:    {t:'YA SALIÓ', c:'var(--gray)'},
+  SIN_FECHA:{t:'SIN FECHA', c:'var(--gray)'}
+};
+
+function $(id){return document.getElementById(id)}
+function val(id){return $(id).value.trim()}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3200)}
+function loading(on){$('loading').style.display=on?'flex':'none'}
+function user(){return val('usuario')}
+function saveUser(){LS.set('user',val('usuario'))}
+
+/* ---- Comunicación con la hoja (a través de la app de Google) ---- */
+async function rpc(fn,args){
+  if(!CFG.url)throw new Error('Falta configurar la conexión (⚙️)');
+  let res;
+  try{res=await fetch(CFG.url,{method:'POST',body:JSON.stringify({action:'rpc',fn,args,pin:CFG.pin})})}
+  catch(e){throw new Error('Sin conexión con Google. Revisa internet y que la app esté implementada como "Ejecutar como: Yo" y "Cualquier usuario".')}
+  const txt=await res.text();let j;
+  try{j=JSON.parse(txt)}catch(e){throw new Error('Respuesta inesperada de Google. Publica una nueva versión del Código.gs.')}
+  if(!j.ok)throw new Error(j.error||'Error');
+  return j.data;
+}
+async function call(fn,...args){
+  loading(true);
+  try{return await rpc(fn,args)}
+  catch(e){toast('Error: '+e.message);throw e}
+  finally{loading(false)}
+}
+function openSetup(){
+  if(typeof stopCam==='function')stopCam();
+  $('cfgUrl').value=CFG.url;$('cfgPin').value=CFG.pin;$('cfgUser').value=user()||LS.get('user');
+  HISTORY=[];show('setup',false);$('btnBack').classList.toggle('hidden',!BOOT);
+}
+async function saveSetup(){
+  const url=val('cfgUrl'),pin=val('cfgPin');
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){$('setupMsg').textContent='El enlace debe empezar con https://script.google.com/ y terminar en /exec';return}
+  const prev=CFG;CFG={url,pin};$('setupMsg').textContent='Conectando…';
+  try{await rpc('apiBoot',[false]).then(b=>{BOOT=b})}catch(e){CFG=prev;$('setupMsg').textContent='⚠ '+e.message;return}
+  LS.set('url',url);LS.set('pin',pin);LS.set('user',val('cfgUser'));$('usuario').value=val('cfgUser');
+  $('setupMsg').textContent='';start();
+}
+
+function show(view,push=true){
+  if(push){const cur=document.querySelector('section:not(.hidden)');if(cur)HISTORY.push(cur.id.slice(2))}
+  document.querySelectorAll('section').forEach(s=>s.classList.add('hidden'));
+  $('v-'+view).classList.remove('hidden');
+  $('btnBack').classList.toggle('hidden',view==='home');
+  window.scrollTo(0,0);
+}
+function go(v){if(v!=='scan')stopCam&&stopCam();HISTORY=[];show(v,false);if(v==='home')refreshCounts()}
+function back(){if(typeof stopCam==='function')stopCam();const v=HISTORY.pop()||'home';show(v,false);if(v==='home')refreshCounts()}
+
+function fillSelect(id,arr,blank){
+  $(id).innerHTML=(blank?'<option value=""></option>':'')+arr.map(v=>`<option>${esc(v)}</option>`).join('');
+}
+
+function setCounts(c){$('nPend').textContent=c.PENDIENTES;$('nDes').textContent=c.DESECHAR;$('nPro').textContent=c.PROXIMO;$('nVig').textContent=c.VIGENTE;$('nSin').textContent=c.SIN_ID}
+function refreshCounts(){if(!APP)return;APP.cuenta=countsLocal();setCounts(APP.cuenta)}
+
+function qrUrl(id){return location.origin+location.pathname+'?id='+encodeURIComponent(id)}
+function drawQr(el,id,size){el.innerHTML='';if(!id)return;new QRCode(el,{text:qrUrl(id),width:size,height:size,correctLevel:QRCode.CorrectLevel.M})}
+
+function itemHtml(o,i){
+  const s=ST[o.semaforo]||ST.SIN_FECHA;
+  const dias=o.semaforo==='SALIO'?(o.entregado||o.estado):(o.dias==null?'':(o.dias<0?`venció hace ${-o.dias} d`:`faltan ${o.dias} d`));
+  return `<div class="item" onclick="openFicha(${i})"><span class="dot" style="background:${s.c}"></span>
+    <div class="main"><div><b>${esc(o.or||'—')}</b> · ${esc(o.detalle)}</div>
+    <small>${esc(o.id||'sin ID')} · ${esc(o.ubicacion||'sin ubicación')} · límite ${esc(o.limite||'—')}</small></div>
+    <span class="pill" style="background:${s.c}">${esc(dias)}</span></div>`;
+}
+
+async function search(){
+  const q=val('q'); if(!q)return;
+  const s=q.toUpperCase();
+  const r=DATA.filter(o=>[o.id,o.or,o.twc,o.ftr,o.detalle,o.ubicacion].some(v=>String(v||'').toUpperCase().includes(s)))
+    .sort((a,b)=>(a.semaforo==='SALIO')-(b.semaforo==='SALIO')).slice(0,60); LIST=r;
+  $('results').innerHTML=r.length?r.map(itemHtml).join(''):'<p class="muted">Sin resultados.</p>';
+}
+
+function openFicha(i){renderFicha(LIST[i]);show('ficha')}
+async function openById(id){
+  const o=BYID[String(id).toUpperCase()]||upsert(await call('apiGet',id));
+  if(!o){toast('No se encontró la caja '+id);go('home');return}
+  renderFicha(o);show('ficha',false);HISTORY=['home'];$('btnBack').classList.remove('hidden');
+}
+
+function renderFicha(o){
+  CUR=o;
+  const s=ST[o.semaforo]||ST.SIN_FECHA;
+  let sub='';
+  if(o.semaforo==='SALIO')sub=`${esc(o.estado)}${o.salida?' · '+esc(o.salida):''}`;
+  else if(o.dias==null)sub='No tiene fecha de reparación ni de recepción';
+  else if(o.dias<0)sub=`Venció el ${esc(o.limite)} (hace ${-o.dias} días)`;
+  else sub=`Puede desecharse desde el ${esc(o.limite)} · faltan ${o.dias} días`;
+  $('banner').className='banner s-'+o.semaforo;
+  $('banner').innerHTML=`<b>${s.t}</b><span>${sub}</span>`;
+  const f=[['ID',o.id||'(sin ID)'],['OR',o.or],['Detalle',o.detalle],['Ubicación',o.ubicacion],['Estado',o.estado],
+    ['Bodega',o.bodega],['Tipo',o.tipo],['# TWC',o.twc],['Agencia',o.agencia],['Recepción',o.recepcion],
+    ['Reparación',o.reparacion],['¿FTR?',o.aplicaFtr+(o.ftr?' · '+o.ftr:'')],['Permanencia hasta',o.limite],
+    ['Entregado a',o.entregado],['Fecha salida',o.salida],['Inventario',o.inventario?'✔ Verificada':'—'],
+    ['Observaciones',o.obs],['Fila en la hoja',o.fila]];
+  $('datos').innerHTML=f.filter(x=>x[1]!==''&&x[1]!=null).map(x=>`<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join('');
+  $('ubiEdit').value=o.ubicacion||'';$('obsEdit').value=o.obs||'';
+  const salio=o.semaforo==='SALIO';
+  $('acciones').classList.toggle('hidden',salio||!o.id);
+  $('accionesSalio').classList.toggle('hidden',!salio||!o.id);
+  drawQr($('fichaQr'),o.id,180);
+  if(!o.id)$('fichaQr').innerHTML='<p class="muted">Esta caja aún no tiene ID. Usa "Asignar ID a cajas sin ID" en el inicio.</p>';
+}
+
+function confirmAct(a,msg){if(confirm(msg))act(a)}
+async function act(a,extra){
+  if(!CUR||!CUR.id)return;
+  if(a==='ENTREGA'&&!extra.destino){toast('Elige el destino');return}
+  const o=upsert(await call('apiUpdate',CUR.id,a,extra||{},user()));
+  renderFicha(o);toast('✔ Guardado en la hoja');
+}
+
+function openNew(){
+  ['or','detalle','twc','sub','ubicacion','ftr','obs','reparacion'].forEach(k=>$('f_'+k).value='');
+  $('f_recepcion').value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  $('f_aplicaFtr').value='';calcLim();show('new');
+}
+function calcLim(){
+  const base=val('f_reparacion')||val('f_recepcion');if(!base||!APP){$('limPrev').textContent='';return}
+  const m=val('f_aplicaFtr')==='SI'?APP.config.mesesFtr:APP.config.mesesNormal;
+  const [y,mo,d]=base.split('-').map(Number);const last=new Date(y,mo-1+m+1,0).getDate();
+  const lim=new Date(y,mo-1+m,Math.min(d,last));
+  $('limPrev').textContent=`Se podrá desechar desde el ${lim.toLocaleDateString('es-EC')} (${m} meses desde ${val('f_reparacion')?'reparación':'recepción'}).`;
+}
+async function saveNew(){
+  const d={};['or','bodega','detalle','tipo','twc','agencia','sub','ubicacion','recepcion','reparacion','aplicaFtr','ftr','obs'].forEach(k=>d[k]=val('f_'+k));
+  if(!d.or||!d.detalle){toast('OR y detalle son obligatorios');return}
+  const o=upsert(await call('apiCreate',d,user()));
+  toast('✔ Caja '+o.id+' guardada. Su QR quedó en "QR nuevos por imprimir"');
+  renderFicha(o);HISTORY=['home'];show('ficha',false);$('btnBack').classList.remove('hidden');
+  refreshCounts();
+}
+
+const TITLES={DESECHAR:'Para desechar',PROXIMO:'Vencen pronto',VIGENTE:'Vigentes',SIN_ID:'Cajas sin ID',BODEGA:'En bodega',SIN_FECHA:'Sin fecha'};
+let LIST_ALL=[];
+async function openList(f){
+  LIST_ALL=listLocal(f);$('listTitle').textContent=TITLES[f]+' ('+LIST_ALL.length+')';
+  $('listFilter').value='';renderList();show('list');
+}
+function renderList(){
+  const q=val('listFilter').toUpperCase();
+  LIST=q?LIST_ALL.filter(o=>[o.id,o.or,o.detalle,o.ubicacion,o.twc].join(' ').toUpperCase().includes(q)):LIST_ALL;
+  const max=300;
+  $('listInfo').textContent=LIST.length>max?`Mostrando ${max} de ${LIST.length}. Usa el filtro para acotar.`:'';
+  $('listBox').innerHTML=LIST.slice(0,max).map(itemHtml).join('')||'<p class="muted">No hay cajas.</p>';
+}
+
+async function assignIds(){
+  if(!confirm('Se escribirá un ID único (columna "ID QR") en cada caja que aún no tenga. ¿Continuar?'))return;
+  const r=await call('apiAssignIds');loadData(await call('apiBoot',true));refreshCounts();toast(r.asignados+' IDs asignados');
+}
+
+let LBL_ALL=[],LBL_SHOWN=[];
+async function openPending(){
+  const r=listLocal('PENDIENTES');
+  if(!r.length){toast('No hay QR pendientes por imprimir');return}
+  openLabels(r,'QR nuevos por imprimir ('+r.length+')');
+}
+function openLabels(arr,title){
+  LBL_ALL=(arr||[]).filter(o=>o&&o.id);
+  if(!LBL_ALL.length){toast('No hay cajas con ID para imprimir');return}
+  $('lblTitle').textContent=title||'Etiquetas QR';
+  $('lblQty').value=LBL_ALL.length;$('lblQty').max=LBL_ALL.length;$('lblCopies').value=1;
+  renderLabels();show('labels');
+}
+function renderLabels(){
+  const qty=Math.max(1,Math.min(LBL_ALL.length,parseInt($('lblQty').value)||LBL_ALL.length));
+  const copies=Math.max(1,Math.min(10,parseInt($('lblCopies').value)||1));
+  LBL_SHOWN=LBL_ALL.slice(0,qty);
+  const total=qty*copies,hojas=Math.ceil(total/9);
+  $('lblInfo').textContent=`${qty} caja(s) × ${copies} copia(s) = ${total} etiqueta(s) · ${hojas} hoja(s) A4`;
+  const box=$('labelsBox');box.innerHTML='';
+  LBL_SHOWN.forEach(o=>{
+    const m=o.limite?Number(o.limite.split('/')[1]):0;
+    for(let c=0;c<copies;c++){
+      const div=document.createElement('div');div.className='lbl';
+      div.innerHTML=`<div class="top c${m%4}">${esc(o.id)}</div><div class="q"></div>
+        <div class="or">OR ${esc(o.or)}</div><div class="det">${esc(o.detalle)}</div>
+        <div class="meta">Ubic: ${esc(o.ubicacion||'—')} · Recep: ${esc(o.recepcion||'—')}</div>
+        <div class="lim">Desechar desde: ${esc(o.limite||'—')}</div>`;
+      box.appendChild(div);
+      new QRCode(div.querySelector('.q'),{text:qrUrl(o.id),width:400,height:400,correctLevel:QRCode.CorrectLevel.M});
+    }
+  });
+}
+async function markPrinted(){
+  if(!LBL_SHOWN.length)return;
+  if(!confirm(`¿Marcar ${LBL_SHOWN.length} etiqueta(s) como impresas? Saldrán de "QR nuevos por imprimir".`))return;
+  const r=await call('apiMarkPrinted',LBL_SHOWN.map(o=>o.id),user());
+  const hoy=BOOT.hoy;LBL_SHOWN.forEach(o=>{const x=BYID[o.id.toUpperCase()];if(x)x.impreso=hoy});
+  toast('✔ '+r.marcadas+' marcadas como impresas');refreshCounts();go('home');
+}
+window.addEventListener('afterprint',()=>{
+  if(!$('v-labels').classList.contains('hidden'))setTimeout(()=>toast('Si salieron bien, toca "Ya las imprimí" para sacarlas de pendientes'),300);
+});
+
+/* ================= ESCANEO CONTINUO ================= */
+let SNAP={},MODE='CONSULTA',SESSION=[],SEEN={},LASTHIT={},STREAM=null,LOOP=null,DETECTOR=null,PENDING_INV=[],FLUSHING=false;
+const HELP={CONSULTA:'Solo muestra el estado de cada caja. No cambia nada en la hoja.',
+  INVENTARIO:'Cada caja escaneada se marca como "Verificada" (columna INVENTARIO) automáticamente.',
+  DESECHO:'Junta las cajas vencidas que escanees. Al final tocas el botón rojo y se envían a gestor de desecho. Las vigentes NO se agregan.'};
+
+async function openScan(){
+  SNAP=BYID;
+  SESSION=[];SEEN={};LASTHIT={};PENDING_INV=[];
+  try{setMode(localStorage.getItem('scanMode')||'CONSULTA')}catch(e){setMode('CONSULTA')}
+  renderSession();show('scan');startCam();
+}
+function setMode(m){
+  MODE=m;['CONSULTA','INVENTARIO','DESECHO'].forEach(x=>$('m-'+x).classList.toggle('on',x===m));
+  $('modeHelp').textContent=HELP[m];try{localStorage.setItem('scanMode',m)}catch(e){}
+  updateApplyBtn();
+}
+async function startCam(){
+  stopCam();
+  $('camMsg').textContent='Iniciando cámara…';
+  try{
+    if('BarcodeDetector' in window){try{const f=await BarcodeDetector.getSupportedFormats();if(f.includes('qr_code'))DETECTOR=new BarcodeDetector({formats:['qr_code']})}catch(e){}}
+    STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+    const v=$('video');v.srcObject=STREAM;await v.play();
+    $('camMsg').textContent='Apunta al QR — escaneo continuo activo';
+    loop();
+  }catch(e){
+    $('camMsg').textContent='La cámara en vivo no está disponible aquí. Usa "Tomar foto del QR" o un lector Bluetooth.';
+  }
+}
+function stopCam(){if(LOOP)clearTimeout(LOOP);LOOP=null;if(STREAM){STREAM.getTracks().forEach(t=>t.stop());STREAM=null}}
+const CANVAS=document.createElement('canvas');const CTX2=CANVAS.getContext('2d',{willReadFrequently:true});
+async function decodeFrom(src,w,h){
+  if(DETECTOR){try{const r=await DETECTOR.detect(src);if(r.length)return r[0].rawValue}catch(e){}}
+  if(typeof jsQR!=='function')return null;
+  const sc=Math.min(1,720/Math.max(w,h));CANVAS.width=Math.round(w*sc);CANVAS.height=Math.round(h*sc);
+  CTX2.drawImage(src,0,0,CANVAS.width,CANVAS.height);
+  const d=CTX2.getImageData(0,0,CANVAS.width,CANVAS.height);
+  const r=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});return r?r.data:null;
+}
+async function loop(){
+  const v=$('video');
+  if(STREAM&&v.readyState>=2){const t=await decodeFrom(v,v.videoWidth,v.videoHeight);if(t)handleCode(t)}
+  if(STREAM)LOOP=setTimeout(loop,180);
+}
+async function scanPhoto(inp){
+  const f=inp.files[0];inp.value='';if(!f)return;
+  const img=new Image();img.src=URL.createObjectURL(f);await img.decode();
+  const t=await decodeFrom(img,img.naturalWidth,img.naturalHeight);
+  if(t)handleCode(t);else{feedback('bad');showLast(null,'No se encontró un QR en la foto. Acércate más y evita reflejos.')}
+}
+function extractId(t){t=String(t||'').trim();const m=t.match(/[?&]id=([^&#\s]+)/i);return decodeURIComponent(m?m[1]:t).trim().toUpperCase()}
+
+function handleCode(text){
+  const id=extractId(text);if(!id)return;
+  const now=Date.now();if(LASTHIT[id]&&now-LASTHIT[id]<3000)return;LASTHIT[id]=now;
+  const o=SNAP[id];
+  if(!o){feedback('bad');showLast(null,'ID '+id+' no está en la hoja');if(!SEEN[id]){SEEN[id]={id,nf:true};SESSION.unshift(SEEN[id]);renderSession()}return}
+  const repeat=!!SEEN[id];
+  if(!repeat){SEEN[id]={id,o,queued:false};SESSION.unshift(SEEN[id])}
+  const e=SEEN[id];let note='';
+  if(MODE==='INVENTARIO'&&o.semaforo!=='SALIO'&&!o.inventario&&!e.inv){PENDING_INV.push(id);e.inv=true;note=' · ✔ inventario';scheduleFlush()}
+  if(MODE==='DESECHO'){
+    if(o.semaforo==='DESECHAR'){if(!e.queued){e.queued=true;note=' · agregada al lote de desecho'}else note=' · ya está en el lote'}
+    else if(o.semaforo!=='SALIO')note=' · VIGENTE: no se agrega';
+  }
+  feedback(o.semaforo==='DESECHAR'?'warn':(o.semaforo==='SALIO'?'bad':'ok'));
+  showLast(o,(repeat?'(ya escaneada) ':'')+note);renderSession();updateApplyBtn();
+}
+function showLast(o,extra){
+  const b=$('lastBox');
+  if(!o){b.className='last s-SIN_FECHA';b.innerHTML=`<b>⚠ ${esc(extra)}</b>`;return}
+  const s=ST[o.semaforo]||ST.SIN_FECHA;
+  const d=o.semaforo==='SALIO'?esc(o.estado):(o.dias==null?'sin fecha':(o.dias<0?`venció hace ${-o.dias} días (${esc(o.limite)})`:`faltan ${o.dias} días (${esc(o.limite)})`));
+  b.className='last s-'+o.semaforo;
+  b.innerHTML=`<b>${s.t} · ${esc(o.id)}</b><span>OR ${esc(o.or)} · ${esc(o.detalle)} · ${esc(o.ubicacion||'—')}<br>${d}${esc(extra||'')}</span>`;
+}
+function renderSession(){
+  const found=SESSION.filter(e=>!e.nf);
+  $('cTot').textContent=SESSION.length;
+  $('cOk').textContent=found.filter(e=>['VIGENTE','PROXIMO'].includes(e.o.semaforo)).length;
+  $('cBad').textContent=found.filter(e=>e.o.semaforo==='DESECHAR').length;
+  $('cNo').textContent=SESSION.filter(e=>e.nf).length;
+  $('scanList').innerHTML=SESSION.length?SESSION.slice(0,200).map(e=>{
+    if(e.nf)return `<div class="item"><span class="dot" style="background:var(--gray)"></span><div class="main"><div><b>${esc(e.id)}</b></div><small>No está en la hoja</small></div></div>`;
+    const o=e.o,s=ST[o.semaforo]||ST.SIN_FECHA;
+    const tag=e.queued?'🗑 en lote':(e.inv?'✔ inventario':s.t);
+    return `<div class="item" onclick="stopCam();openById('${esc(o.id)}')"><span class="dot" style="background:${s.c}"></span><div class="main"><div><b>${esc(o.or)}</b> · ${esc(o.detalle)}</div><small>${esc(o.id)} · ${esc(o.ubicacion||'—')} · límite ${esc(o.limite||'—')}</small></div><span class="pill" style="background:${s.c}">${esc(tag)}</span></div>`;
+  }).join(''):'<p class="muted">Aún nada.</p>';
+}
+function updateApplyBtn(){
+  const n=SESSION.filter(e=>e.queued).length;
+  const b=$('btnApplyDesecho');b.classList.toggle('hidden',!(MODE==='DESECHO'&&n));
+  b.textContent=`🗑 Enviar ${n} caja(s) vencida(s) a gestor de desecho`;
+}
+let FLUSH_T=null;
+function scheduleFlush(){$('syncMsg').textContent=`Guardando ${PENDING_INV.length} en la hoja…`;clearTimeout(FLUSH_T);FLUSH_T=setTimeout(flushInv,2500)}
+function flushInv(){
+  if(FLUSHING||!PENDING_INV.length)return;
+  FLUSHING=true;const batch=PENDING_INV.splice(0);
+  rpc('apiBulk',[batch,'INVENTARIO',user()]).then(r=>{FLUSHING=false;batch.forEach(id=>{if(SNAP[id])SNAP[id].inventario=true});
+      $('syncMsg').textContent=`✔ ${r.aplicadas} marcadas en la hoja (${new Date().toLocaleTimeString('es-EC')})`;if(PENDING_INV.length)scheduleFlush()})
+    .catch(err=>{FLUSHING=false;PENDING_INV.unshift(...batch);$('syncMsg').textContent='⚠ Sin conexión, reintentando…';setTimeout(flushInv,5000)});
+}
+async function applyDesecho(){
+  const ids=SESSION.filter(e=>e.queued).map(e=>e.id);
+  if(!ids.length||!confirm(`¿Confirmas enviar ${ids.length} caja(s) vencida(s) a GESTOR DESECHO con fecha de hoy?`))return;
+  const r=await call('apiBulk',ids,'DESECHO',user());
+  SESSION.forEach(e=>{if(e.queued&&r.ids.includes(e.id)){e.queued=false;e.o.semaforo='SALIO';e.o.estado='ENTREGADO/ENVIADO A GESTOR DESECHO';e.o.entregado='GESTOR DESECHO';e.o.salida=BOOT.hoy}});
+  renderSession();updateApplyBtn();toast(`✔ ${r.aplicadas} cajas marcadas como enviadas a desecho`);
+}
+function finishScan(){
+  const q=SESSION.filter(e=>e.queued).length;
+  if(q&&!confirm(`Tienes ${q} caja(s) en el lote de desecho sin enviar. ¿Salir de todos modos?`))return;
+  flushInv();stopCam();go('home');
+}
+let AC=null;
+function feedback(kind){
+  try{navigator.vibrate&&navigator.vibrate(kind==='ok'?60:kind==='warn'?[80,60,80]:[250])}catch(e){}
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const tones=kind==='ok'?[880]:kind==='warn'?[440,440]:[220];
+    tones.forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.connect(g);g.connect(AC.destination);
+      const t=AC.currentTime+i*0.18;g.gain.setValueAtTime(0.15,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.14);o.start(t);o.stop(t+0.15)})}catch(e){}
+}
+
+let TORCH=false;
+async function toggleTorch(){
+  const tr=STREAM&&STREAM.getVideoTracks()[0];
+  if(!tr){toast('Primero inicia la cámara');return}
+  try{TORCH=!TORCH;await tr.applyConstraints({advanced:[{torch:TORCH}]})}catch(e){TORCH=false;toast('Este teléfono no permite la linterna desde el navegador')}
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){try{flushInv()}catch(e){}}});
+
+async function start(){
+  if(!BOOT){try{BOOT=await call('apiBoot',false)}catch(e){openSetup();$('setupMsg').textContent='⚠ '+e.message;return}}
+  loadData(BOOT);
+  setCounts(APP.cuenta);
+  fillSelect('f_bodega',APP.listas.bodega,true);fillSelect('f_tipo',APP.listas.tipo,true);
+  fillSelect('f_agencia',APP.listas.agencia,true);fillSelect('destino',APP.listas.destinos.filter(d=>d!=='GESTOR DESECHO'),true);
+  $('dlUbic').innerHTML=APP.listas.ubicacion.map(u=>`<option value="${esc(u)}">`).join('');
+  ['f_recepcion','f_reparacion'].forEach(id=>$(id).addEventListener('change',calcLim));
+  $('btnBack').classList.add('hidden');
+  if(INITIAL_ID){openById(INITIAL_ID);history.replaceState(null,'',location.pathname)}else go('home');
+}
+(function init(){
+  $('usuario').value=LS.get('user');
+  if(CFG.url&&CFG.pin)start();else openSetup();
+})();
+</script>
+</body>
+</html>
