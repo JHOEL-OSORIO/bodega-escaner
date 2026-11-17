@@ -86,6 +86,15 @@
   .cam video{width:100%;height:100%;object-fit:cover;display:block}
   .cam .aim{position:absolute;inset:18%;border:3px solid #ffffffcc;border-radius:14px;box-shadow:0 0 0 999px #0005}
   .cam .msg{position:absolute;left:0;right:0;bottom:0;color:#fff;text-align:center;padding:8px;font-size:14px;background:#0008}
+  /* Aviso grande al leer un QR */
+  .flash{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;
+         font-weight:800;text-align:center;opacity:0;pointer-events:none;transition:opacity .15s}
+  .flash.on{opacity:.93}
+  .flash .big{font-size:64px;line-height:1}
+  .flash .t1{font-size:26px;margin-top:6px}
+  .flash .t2{font-size:16px;margin-top:4px;font-weight:600}
+  .f-ok{background:#16803c}.f-warn{background:#c4161c}.f-bad{background:#4b5563}
+  .count{position:absolute;top:8px;right:8px;background:#000a;color:#fff;border-radius:20px;padding:4px 10px;font-size:14px;font-weight:700}
   .last{border-radius:12px;padding:12px;color:#fff;margin:10px 0;min-height:64px}
   .last b{font-size:22px;display:block}
   .counts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:12px;color:var(--muted)}
@@ -252,6 +261,8 @@
       <video id="video" playsinline muted autoplay></video>
       <div class="aim"></div>
       <div class="msg" id="camMsg">Iniciando cámara…</div>
+      <div class="count" id="camCount">0 leídas</div>
+      <div class="flash" id="flash"><div class="big" id="fBig"></div><div class="t1" id="fT1"></div><div class="t2" id="fT2"></div></div>
     </div>
     <div class="row" style="margin-top:8px">
       <button class="btn small" onclick="startCam()">🔄 Reintentar cámara</button>
@@ -529,9 +540,10 @@ const HELP={CONSULTA:'Solo muestra el estado de cada caja. No cambia nada en la 
 
 async function openScan(){
   SNAP=BYID;
-  SESSION=[];SEEN={};LASTHIT={};PENDING_INV=[];
+  SESSION=[];SEEN={};LASTHIT={};PENDING_INV=[];READS=0;
   try{setMode(localStorage.getItem('scanMode')||'CONSULTA')}catch(e){setMode('CONSULTA')}
   renderSession();show('scan');startCam();
+  if(/iPhone|iPad|iPod/i.test(navigator.userAgent)&&!navigator.vibrate)toast('En iPhone el navegador no permite vibrar: te avisará con sonido y destello de color.');
 }
 function setMode(m){
   MODE=m;['CONSULTA','INVENTARIO','DESECHO'].forEach(x=>$('m-'+x).classList.toggle('on',x===m));
@@ -561,9 +573,10 @@ async function decodeFrom(src,w,h){
   const d=CTX2.getImageData(0,0,CANVAS.width,CANVAS.height);
   const r=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});return r?r.data:null;
 }
+let PAUSE_UNTIL=0;
 async function loop(){
   const v=$('video');
-  if(STREAM&&v.readyState>=2){const t=await decodeFrom(v,v.videoWidth,v.videoHeight);if(t)handleCode(t)}
+  if(STREAM&&v.readyState>=2&&Date.now()>PAUSE_UNTIL){const t=await decodeFrom(v,v.videoWidth,v.videoHeight);if(t)handleCode(t)}
   if(STREAM)LOOP=setTimeout(loop,180);
 }
 async function scanPhoto(inp){
@@ -578,7 +591,7 @@ function handleCode(text){
   const id=extractId(text);if(!id)return;
   const now=Date.now();if(LASTHIT[id]&&now-LASTHIT[id]<3000)return;LASTHIT[id]=now;
   const o=SNAP[id];
-  if(!o){feedback('bad');showLast(null,'ID '+id+' no está en la hoja');if(!SEEN[id]){SEEN[id]={id,nf:true};SESSION.unshift(SEEN[id]);renderSession()}return}
+  if(!o){feedback('bad');flash('bad','✖','NO ENCONTRADA',id);showLast(null,'ID '+id+' no está en la hoja');if(!SEEN[id]){SEEN[id]={id,nf:true};SESSION.unshift(SEEN[id]);renderSession()}return}
   const repeat=!!SEEN[id];
   if(!repeat){SEEN[id]={id,o,queued:false};SESSION.unshift(SEEN[id])}
   const e=SEEN[id];let note='';
@@ -587,7 +600,9 @@ function handleCode(text){
     if(o.semaforo==='DESECHAR'){if(!e.queued){e.queued=true;note=' · agregada al lote de desecho'}else note=' · ya está en el lote'}
     else if(o.semaforo!=='SALIO')note=' · VIGENTE: no se agrega';
   }
-  feedback(o.semaforo==='DESECHAR'?'warn':(o.semaforo==='SALIO'?'bad':'ok'));
+  const kind=o.semaforo==='DESECHAR'?'warn':(o.semaforo==='SALIO'?'bad':'ok');
+  feedback(kind);
+  flash(kind,kind==='ok'?'✔':kind==='warn'?'🗑':'⚠',(ST[o.semaforo]||ST.SIN_FECHA).t+(repeat?' (repetida)':''),o.id+' · OR '+o.or);
   showLast(o,(repeat?'(ya escaneada) ':'')+note);renderSession();updateApplyBtn();
 }
 function showLast(o,extra){
@@ -638,12 +653,24 @@ function finishScan(){
   flushInv();stopCam();go('home');
 }
 let AC=null;
+/* ---- Aviso al leer: vibración fuerte + sonido + destello de color en la cámara ---- */
+const VIB={ok:[250],warn:[180,100,180,100,180],bad:[700]};
 function feedback(kind){
-  try{navigator.vibrate&&navigator.vibrate(kind==='ok'?60:kind==='warn'?[80,60,80]:[250])}catch(e){}
-  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const tones=kind==='ok'?[880]:kind==='warn'?[440,440]:[220];
-    tones.forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=f;o.connect(g);g.connect(AC.destination);
-      const t=AC.currentTime+i*0.18;g.gain.setValueAtTime(0.15,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.14);o.start(t);o.stop(t+0.15)})}catch(e){}
+  try{if(navigator.vibrate){navigator.vibrate(0);navigator.vibrate(VIB[kind]||VIB.ok)}}catch(e){}
+  try{const ac=audio();if(!ac)return;const tones=kind==='ok'?[1100,1500]:kind==='warn'?[440,440,440]:[200];
+    tones.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=f;o.connect(g);g.connect(ac.destination);
+      const t=ac.currentTime+i*(kind==='ok'?0.12:0.22);g.gain.setValueAtTime(0.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+(kind==='bad'?0.5:0.18));o.start(t);o.stop(t+(kind==='bad'?0.5:0.19))})}catch(e){}
 }
+function audio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}catch(e){return null}}
+let FLASH_T=null,READS=0;
+function flash(kind,big,t1,t2){
+  const f=$('flash');f.className='flash on f-'+kind;$('fBig').textContent=big;$('fT1').textContent=t1;$('fT2').textContent=t2||'';
+  READS++;$('camCount').textContent=READS+(READS===1?' leída':' leídas');
+  PAUSE_UNTIL=Date.now()+1300;                 // pausa breve para que no se confunda con la siguiente
+  clearTimeout(FLASH_T);FLASH_T=setTimeout(()=>{f.className='flash';$('camMsg').textContent='✔ Listo para la siguiente caja'},1100);
+}
+// El navegador solo permite sonido y vibración después de tocar la pantalla: se activan con el primer toque.
+document.addEventListener('pointerdown',()=>{audio();try{navigator.vibrate&&navigator.vibrate(1)}catch(e){}},{passive:true});
 
 let TORCH=false;
 async function toggleTorch(){
