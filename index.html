@@ -146,6 +146,7 @@
       <button class="btn primary" onclick="openNew()">＋ Registrar caja nueva</button>
       <button class="btn primary" onclick="openScan()">📷 Escaneo continuo</button>
       <button class="btn ok" onclick="openPending()">🖨 QR nuevos por imprimir (<span id="nPend">–</span>)</button>
+      <button class="btn" style="background:#1d4ed8;color:#fff" onclick="openList('CREMALLERA')">🔧 QR de cremalleras (<span id="nCrem">–</span>)</button>
       <button class="btn" onclick="openList('BODEGA')">Todo lo que está en bodega / imprimir etiquetas</button>
       <button class="btn" onclick="assignIds()">Asignar ID a cajas sin ID</button>
       <button class="btn" onclick="reloadData()">🔄 Actualizar datos desde la hoja</button>
@@ -300,12 +301,23 @@ const LS={get(k){try{return localStorage.getItem('bodega_'+k)||''}catch(e){retur
 let CFG={url:LS.get('url'),pin:LS.get('pin')};
 /* ---- Datos locales: todo se consulta en el teléfono, solo los cambios van al servidor ---- */
 let DATA=[],BYID={};
+/* ---- Grupo CREMALLERAS: OFP 4425042420/840/210/191 (lista de órdenes sacada de las bases del 18/11/2026) o DETALLE con 'CREMALLERA' ---- */
+const OFP_CREM={"4425042420":"C289485,C291506,C292376,C292748,L152337,C281120,D106823,S102013,C270445,A334951,A334698,G52713,L156374,D107726,G55394,G55045,C285427,N250264,A337166,A337079,A337725,N250958,N245157,A337724,N250281,D109106,G57380,L159818,N252617,G49664,S100158,C277816,L161145,A339629,G62344,A331544,A332102,A343130,N253550,N253553,N253843,N254045,N254095,N252710,N252486,C293842,C293448,N254942,N255482,C295222,G64685,G64004,S107629,L163853,A345321,A345277,G65813,D112883","4425042840":"A333077,G42341,C282866,G53603,D108786,C281853,C283622,A335342,N248175,C284246,D103877,A335766,G44996,N249550,N250421,G55957,N243353,N244332,A337859,C287911,N242614,T76911,N252616,G60321,A331311,C291125,D110089,L161463,N253112,S104597,G57996,A343022,A342120,G46498,G47439,G60925,G60450,G65090,G61424,C295623","4425042210":"G42036,C291684,G42597,L155438,A335704,A335891,G52827,G52993,C281982,G54339,G54444,A336109,N248191,C283236,D108023,L157087,N249636,D108379,G45303,N250031,A337615,L159217,G57381,D110257,G59828,C277652,A340079,G60397,D109882,N253922,S105557,D110639,N254789,G63732,A343672,G62498,N253838","4425042191":"A338804,G56887,A339911,D110508,G51899,C288379,A339500,C296091"};
+const OR_OFP={};Object.keys(OFP_CREM).forEach(k=>OFP_CREM[k].split(',').forEach(or=>OR_OFP[or]=k));
+function esCremallera(o){
+  const or=String(o.or||'').toUpperCase().trim(),base=or.replace(/^([A-Z]{1,3}\d{3,8})[A-Z]+$/,'$1');
+  const ofp=o.ofp||OR_OFP[or]||OR_OFP[base]||'';
+  if(ofp&&!o.ofp)o.ofp=ofp;
+  const det=String(o.detalle||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  return !!OFP_CREM[ofp]||det.includes('CREMALLERA');
+}
 function loadData(b){
-  BOOT=b;DATA=b.registros||[];BYID={};DATA.forEach(o=>{if(o.id)BYID[o.id.toUpperCase()]=o});
+  BOOT=b;DATA=b.registros||[];DATA.forEach(o=>{o.grupo=esCremallera(o)?'CREMALLERA':''});BYID={};DATA.forEach(o=>{if(o.id)BYID[o.id.toUpperCase()]=o});
   APP={url:b.url,listas:b.listas,config:b.config,cuenta:countsLocal()};
 }
 function upsert(o){
   if(!o)return o;
+  o.grupo=esCremallera(o)?'CREMALLERA':'';
   let i=DATA.findIndex(x=>x.fila===o.fila);
   if(i>=0)DATA[i]=o;else DATA.push(o);
   if(o.id)BYID[o.id.toUpperCase()]=o;
@@ -317,6 +329,8 @@ function countsLocal(){
   return c;
 }
 function listLocal(f){
+  if(f==='CREMALLERA')return DATA.filter(o=>o.grupo==='CREMALLERA'&&o.semaforo!=='SALIO')
+    .sort((a,b)=>String(a.ofp).localeCompare(String(b.ofp))||String(a.id).localeCompare(String(b.id)));
   let out=DATA.filter(o=>f==='BODEGA'?o.semaforo!=='SALIO':f==='SIN_ID'?!o.id:f==='PENDIENTES'?(o.id&&!o.impreso&&o.semaforo!=='SALIO'):o.semaforo===f);
   if(f==='PENDIENTES')return out.sort((a,b)=>a.id.localeCompare(b.id));
   return out.sort((a,b)=>(a.dias==null?1e9:a.dias)-(b.dias==null?1e9:b.dias));
@@ -384,7 +398,7 @@ function fillSelect(id,arr,blank){
   $(id).innerHTML=(blank?'<option value=""></option>':'')+arr.map(v=>`<option>${esc(v)}</option>`).join('');
 }
 
-function setCounts(c){$('nPend').textContent=c.PENDIENTES;$('nDes').textContent=c.DESECHAR;$('nPro').textContent=c.PROXIMO;$('nVig').textContent=c.VIGENTE;$('nSin').textContent=c.SIN_ID}
+function setCounts(c){$('nCrem').textContent=DATA.filter(o=>o.grupo==='CREMALLERA'&&o.semaforo!=='SALIO').length;$('nPend').textContent=c.PENDIENTES;$('nDes').textContent=c.DESECHAR;$('nPro').textContent=c.PROXIMO;$('nVig').textContent=c.VIGENTE;$('nSin').textContent=c.SIN_ID}
 function refreshCounts(){if(!APP)return;APP.cuenta=countsLocal();setCounts(APP.cuenta)}
 
 function qrUrl(id){return location.origin+location.pathname+'?id='+encodeURIComponent(id)}
@@ -395,7 +409,7 @@ function itemHtml(o,i){
   const dias=o.semaforo==='SALIO'?(o.entregado||o.estado):(o.dias==null?'':(o.dias<0?`venció hace ${-o.dias} d`:`faltan ${o.dias} d`));
   return `<div class="item" onclick="openFicha(${i})"><span class="dot" style="background:${s.c}"></span>
     <div class="main"><div><b>${esc(o.or||'—')}</b> · ${esc(o.detalle)}</div>
-    <small>${esc(o.id||'sin ID')} · ${esc(o.ubicacion||'sin ubicación')} · límite ${esc(o.limite||'—')}</small></div>
+    <small>${esc(o.id||'sin ID')}${o.ofp?' · OFP '+esc(o.ofp):''} · ${esc(o.ubicacion||'sin ubicación')} · límite ${esc(o.limite||'—')}</small></div>
     <span class="pill" style="background:${s.c}">${esc(dias)}</span></div>`;
 }
 
@@ -424,7 +438,7 @@ function renderFicha(o){
   else sub=`Puede desecharse desde el ${esc(o.limite)} · faltan ${o.dias} días`;
   $('banner').className='banner s-'+o.semaforo;
   $('banner').innerHTML=`<b>${s.t}</b><span>${sub}</span>`;
-  const f=[['ID',o.id||'(sin ID)'],['OR',o.or],['Detalle',o.detalle],['Ubicación',o.ubicacion],['Estado',o.estado],
+  const f=[['ID',o.id||'(sin ID)'],['OR',o.or],['Detalle',o.detalle],['OFP',o.ofp||''],['Ubicación',o.ubicacion],['Estado',o.estado],
     ['Bodega',o.bodega],['Tipo',o.tipo],['# TWC',o.twc],['Agencia',o.agencia],['Recepción',o.recepcion],
     ['Reparación',o.reparacion],['¿FTR?',o.aplicaFtr+(o.ftr?' · '+o.ftr:'')],['Permanencia hasta',o.limite],
     ['Entregado a',o.entregado],['Fecha salida',o.salida],['Inventario',o.inventario?'✔ Verificada':'—'],
@@ -467,7 +481,7 @@ async function saveNew(){
   refreshCounts();
 }
 
-const TITLES={DESECHAR:'Para desechar',PROXIMO:'Vencen pronto',VIGENTE:'Vigentes',SIN_ID:'Cajas sin ID',BODEGA:'En bodega',SIN_FECHA:'Sin fecha'};
+const TITLES={CREMALLERA:'Cremalleras en bodega',DESECHAR:'Para desechar',PROXIMO:'Vencen pronto',VIGENTE:'Vigentes',SIN_ID:'Cajas sin ID',BODEGA:'En bodega',SIN_FECHA:'Sin fecha'};
 let LIST_ALL=[];
 async function openList(f){
   LIST_ALL=listLocal(f);$('listTitle').textContent=TITLES[f]+' ('+LIST_ALL.length+')';
@@ -475,7 +489,7 @@ async function openList(f){
 }
 function renderList(){
   const q=val('listFilter').toUpperCase();
-  LIST=q?LIST_ALL.filter(o=>[o.id,o.or,o.detalle,o.ubicacion,o.twc].join(' ').toUpperCase().includes(q)):LIST_ALL;
+  LIST=q?LIST_ALL.filter(o=>[o.id,o.or,o.detalle,o.ubicacion,o.twc,o.ofp].join(' ').toUpperCase().includes(q)):LIST_ALL;
   const max=300;
   $('listInfo').textContent=LIST.length>max?`Mostrando ${max} de ${LIST.length}. Usa el filtro para acotar.`:'';
   $('listBox').innerHTML=LIST.slice(0,max).map(itemHtml).join('')||'<p class="muted">No hay cajas.</p>';
